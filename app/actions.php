@@ -76,6 +76,24 @@ function file_raw(int $id): void
     stream_file(file_path($file), $file['name'], $file['mime'], (int)$file['size']);
 }
 
+// Thumbnail (authed). Serves the generated jpg for video files.
+function file_thumb(int $id): void
+{
+    $file = get_file($id);
+    if (!$file || $file['thumb'] === null) {
+        http_response_code(404);
+        return;
+    }
+    $path = storage_dir() . '/' . $file['thumb'];
+    if (!is_file($path)) {
+        http_response_code(404);
+        return;
+    }
+    header('Content-Type: image/jpeg');
+    header('Cache-Control: private, max-age=86400');
+    readfile($path);
+}
+
 // Signed download (time-limited token, used by share page).
 function file_download_signed(int $id, string $token): void
 {
@@ -267,6 +285,7 @@ function file_view_model(array $file): array
         'kind'      => $kind,
         'created'   => $file['created_at'],
         'preview'   => url('/raw/' . $file['id']),
+        'thumb'     => $file['thumb'] !== null ? url('/thumb/' . $file['id']) : null,
         'icon'      => icon_for($kind),
     ];
 }

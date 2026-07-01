@@ -41,13 +41,49 @@ function save_upload(array $file, ?int $folderId): array
         throw new RuntimeException('Failed to move uploaded file');
     }
 
+    // Best-effort video thumbnail. Skipped silently if ffmpeg absent
+    // (common on shared/cPanel hosting) — UI falls back to an icon.
+    $thumb = generate_thumb($dest, $mime);
+
     $pdo = db($cfg['db_path']);
     $stmt = $pdo->prepare(
-        'INSERT INTO files (storage_id, name, mime, size, folder_id) VALUES (?, ?, ?, ?, ?)'
+        'INSERT INTO files (storage_id, name, mime, size, folder_id, thumb) VALUES (?, ?, ?, ?, ?, ?)'
     );
-    $stmt->execute([$sid, $name, $mime, $file['size'], $folderId]);
+    $stmt->execute([$sid, $name, $mime, $file['size'], $folderId, $thumb]);
     $id = (int)$pdo->lastInsertId();
     return get_file($id) ?? throw new RuntimeException('Insert failed');
+}
+
+// Path to a file's thumbnail (jpg next to it in storage).
+function thumb_path(array $file): string
+{
+    return storage_dir() . '/' . $file['storage_id'] . '.thumb.jpg';
+}
+
+// Generate a thumbnail for video files via ffmpeg. Returns the thumb storage_id
+// name (relative to storage dir) on success, null otherwise.
+function generate_thumb(string $filePath, string $mime): ?string
+{
+    if (!str_starts_with($mime, 'video/')) {
+        return null;
+    }
+    $ffmpeg = trim((string)shell_exec('command -v ffmpeg 2>/dev/null'));
+    if ($ffmpeg === '' || !is_executable($ffmpeg)) {
+        return null;
+    }
+    $base = basename($filePath);
+    $out = substr($base, 0, (int)strrpos($base, '.')) . '.thumb.jpg';
+    $outPath = dirname($filePath) . '/' . $out;
+
+    // Grab frame at ~1s, scale to 480px wide, overwrite. Errors suppressed.
+    $cmd = sprintf(
+        '%s -y -ss 1 -i %s -vframes 1 -vf "scale=480:-1" %s 2>&1',
+        escapeshellarg($ffmpeg),
+        escapeshellarg($filePath),
+        escapeshellarg($outPath)
+    );
+    @shell_exec($cmd);
+    return is_file($outPath) ? $out : null;
 }
 
 function get_file(int $id): ?array
@@ -130,6 +166,10 @@ function delete_file(int $id): void
     if (!$file) return;
     $path = file_path($file);
     if (is_file($path)) @unlink($path);
+    if ($file['thumb'] !== null) {
+        $tp = storage_dir() . '/' . $file['thumb'];
+        if (is_file($tp)) @unlink($tp);
+    }
     db(config()['db_path'])->prepare('DELETE FROM files WHERE id = ?')->execute([$id]);
 }
 

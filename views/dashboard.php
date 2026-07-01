@@ -103,7 +103,13 @@ $vm = array_map('file_view_model', $files);
           <template x-if="f.kind==='image'">
             <img :src="f.preview" class="w-full h-full object-cover" loading="lazy">
           </template>
-          <template x-if="f.kind==='video'">
+          <template x-if="f.kind==='video' && f.thumb">
+            <div class="relative w-full h-full">
+              <img :src="f.thumb" class="w-full h-full object-cover" loading="lazy">
+              <span class="absolute inset-0 flex items-center justify-center text-white/90 drop-shadow"><svg class="w-10 h-10" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span>
+            </div>
+          </template>
+          <template x-if="f.kind==='video' && !f.thumb">
             <video :src="f.preview" class="w-full h-full object-cover" muted></video>
           </template>
           <template x-if="!['image','video'].includes(f.kind)">

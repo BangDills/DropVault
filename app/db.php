@@ -56,4 +56,10 @@ function db_init(string $dbPath): void
     ");
     $pdo->exec("CREATE INDEX IF NOT EXISTS idx_files_folder ON files(folder_id)");
     $pdo->exec("CREATE INDEX IF NOT EXISTS idx_folders_parent ON folders(parent_id)");
+
+    // Migrations: add columns if missing (idempotent, works on existing DBs).
+    $cols = $pdo->query('PRAGMA table_info(files)')->fetchAll(PDO::FETCH_COLUMN, 1);
+    if (!in_array('thumb', $cols, true)) {
+        $pdo->exec('ALTER TABLE files ADD COLUMN thumb TEXT NULL');
+    }
 }

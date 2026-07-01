@@ -41,6 +41,11 @@ if (preg_match('#^/raw/(?<id>\d+)$#', $path, $m)) {
     file_raw((int)$m['id']);
     exit;
 }
+if (preg_match('#^/thumb/(?<id>\d+)$#', $path, $m)) {
+    require_login();
+    file_thumb((int)$m['id']);
+    exit;
+}
 
 // Auth.
 if ($path === '/login') {

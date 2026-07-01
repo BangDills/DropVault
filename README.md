@@ -8,6 +8,7 @@ Self-hosted personal file hosting — single PHP app, zero build step, made for 
 
 - **Drag & drop / multi-file / paste (Ctrl+V) upload** with live progress
 - **Built-in preview**: image, video, audio, PDF, text/code
+- **Video thumbnails** — auto-generated via ffmpeg (graceful fallback to icon if ffmpeg is absent, common on shared hosting)
 - **Share links**: custom token, optional password, optional expiry, hit counter
 - **Folders** with breadcrumbs (nested, drag-ready structure)
 - **Signed download URLs** — files live outside the web root, served only via short-lived HMAC tokens
@@ -21,6 +22,7 @@ Self-hosted personal file hosting — single PHP app, zero build step, made for 
 - PHP 8.1+ with `pdo_sqlite` (or `sqlite3`), `fileinfo` — standard on cPanel
 - Apache with `mod_rewrite` (for pretty URLs) — optional, falls back to `?route=`
 - Writable directory for file storage (outside `public_html`)
+- **ffmpeg** (optional) — only needed for video thumbnails; uploads work without it
 
 ## Quick start (local)
 
