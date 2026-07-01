@@ -1,0 +1,13 @@
+[x-cloak] { display: none !important; }
+
+/* Smooth theme transition */
+* { transition: background-color .15s, border-color .15s; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(148,163,184,.4); border-radius: 5px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(148,163,184,.6); }
+
+/* Drag-over highlight on whole window */
+body.dragging { background: rgba(99,102,241,.05); }

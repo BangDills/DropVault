@@ -1,0 +1,15 @@
+# Secrets & runtime data — never commit
+config.php
+data.sqlite
+data.sqlite-wal
+data.sqlite-shm
+
+# Uploaded files (storage lives outside web root; never commit contents)
+storage/
+
+# OS/editor cruft
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
