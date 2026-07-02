@@ -4,6 +4,16 @@ declare(strict_types=1);
 // Single entry point + front controller. Routes /api?*, /s/*, /dl/*, /login,
 // /logout, and the dashboard. Pretty URLs via .htaccess; falls back to ?route=.
 
+// PHP built-in server: when a router script is given, it handles every
+// request — so let static files (assets) be served directly by returning false.
+// Apache (cPanel) reaches index.php only via .htaccess rewrite, which already
+// skips real files via RewriteCond %{REQUEST_FILENAME} -f.
+$uri = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
+$realPath = __DIR__ . $uri;
+if ($uri !== '/' && is_file($realPath)) {
+    return false; // let the built-in server output the static file
+}
+
 require __DIR__ . '/../app/bootstrap.php';
 
 // Determine route:
