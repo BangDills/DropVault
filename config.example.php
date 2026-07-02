@@ -8,5 +8,5 @@ return [
     'db_path'         => __DIR__ . '/data.sqlite',
     'max_upload'      => 512 * 1024 * 1024, // 512 MiB
     'share_purge_after' => 0,
-    'app_name'        => 'DropVault',
+    'app_name'        => 'Celiuz Vault',
 ];

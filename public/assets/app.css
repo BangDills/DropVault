@@ -1,13 +1,26 @@
 [x-cloak] { display: none !important; }
 
 /* Smooth theme transition */
-* { transition: background-color .15s, border-color .15s; }
+* { transition: background-color .15s, border-color .15s, color .15s; }
+
+/* Dark mode overrides for the cv palette (inverted, ChatGPT-style). */
+.dark .bg-cv-bg      { background-color: #212121 !important; }
+.dark .bg-cv-surface { background-color: #2f2f2f !important; }
+.dark .border-cv-border { border-color: #424242 !important; }
+.dark .text-cv-text  { color: #ececec !important; }
+.dark .text-cv-muted { color: #b4b4b4 !important; }
+.dark .bg-cv-accent  { background-color: #ececec !important; }
+.dark .text-cv-accentfg { color: #212121 !important; }
+.dark .hover\:bg-cv-surface:hover { background-color: #2f2f2f !important; }
+.dark .hover\:bg-cv-accent:hover  { background-color: #ececec !important; }
+.dark .hover\:text-cv-accentfg:hover { color: #212121 !important; }
 
 /* Scrollbar */
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(148,163,184,.4); border-radius: 5px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(148,163,184,.6); }
+::-webkit-scrollbar-thumb { background: rgba(142,142,147,.4); border-radius: 5px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(142,142,147,.6); }
 
-/* Drag-over highlight on whole window */
-body.dragging { background: rgba(99,102,241,.05); }
+/* Drag-over highlight */
+body.dragging { background: rgba(13,13,13,.04); }
+.dark body.dragging { background: rgba(236,236,236,.05); }

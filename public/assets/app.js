@@ -11,7 +11,7 @@ function humanSize(bytes) {
 
 function vault(initial) {
   return {
-    theme: localStorage.getItem('theme') || 'dark',
+    theme: localStorage.getItem('cv-theme') || 'light',
     files: initial.files || [],
     folders: initial.folders || [],
     chain: initial.chain || [],
@@ -37,6 +37,7 @@ function vault(initial) {
     toggleTheme() {
       this.theme = this.theme === 'dark' ? 'light' : 'dark';
       document.documentElement.classList.toggle('dark', this.theme === 'dark');
+      localStorage.setItem('cv-theme', this.theme);
     },
 
     onDrop(e) {

@@ -1,6 +1,6 @@
 <?php /** @var string $appName */ ?>
 <!DOCTYPE html>
-<html lang="id" class="dark" x-data="{ theme: localStorage.getItem('theme') || 'dark' }" :class="theme" x-init="$watch('theme', v => localStorage.setItem('theme', v))">
+<html lang="id" x-data="{ theme: localStorage.getItem('cv-theme') || 'light' }" :class="theme" x-init="$watch('theme', v => localStorage.setItem('cv-theme', v))">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -12,7 +12,14 @@
         theme: {
           extend: {
             colors: {
-              accent: { 500: '#6366f1', 600: '#4f46e5', 700: '#4338ca' },
+              // ChatGPT-style neutral palette — no purple/neon.
+              // Light: white surfaces, near-black text & accent.
+              // Dark: #212121 surfaces, near-white text & accent.
+              cv: {
+                bg:      '#ffffff', surface: '#f9f9f9', border: '#e5e5e5',
+                text:    '#0d0d0d', muted: '#6e6e80',
+                accent:  '#0d0d0d', accentfg: '#ffffff',
+              },
             },
             fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
           },
@@ -27,7 +34,7 @@
     <script defer src="<?= e(url('/assets/app.js')) ?>"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
-<body class="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 font-sans antialiased">
+<body class="min-h-screen bg-cv-bg text-cv-text font-sans antialiased dark:bg-[#212121] dark:text-[#ececec]">
 <?= $content ?? '' ?>
 </body>
 </html>

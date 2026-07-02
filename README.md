@@ -1,4 +1,4 @@
-# DropVault
+# Celiuz Vault
 
 Self-hosted personal file hosting — single PHP app, zero build step, made for **cPanel/shared hosting**. Upload, preview, and share files with password-protected, expiring links. Dark/light UI, drag & drop, paste-to-upload, folders.
 
@@ -29,7 +29,7 @@ Self-hosted personal file hosting — single PHP app, zero build step, made for 
 ## Quick start (local)
 
 ```bash
-git clone <your-repo> dropvault && cd dropvault
+git clone <your-repo> celiuz-vault && cd celiuz-vault
 cp config.example.php config.php
 # edit config.php: set password + secret
 php -S 127.0.0.1:8765 -t public public/index.php
@@ -74,7 +74,7 @@ The SQLite DB (`data.sqlite`) and upload folder are created automatically on fir
 | `db_path` | SQLite database file path | `data.sqlite` |
 | `max_upload` | Max upload size in bytes | `512 MiB` |
 | `share_purge_after` | Auto-delete shares older than N seconds (0 = off) | `0` |
-| `app_name` | Name shown in UI | `DropVault` |
+| `app_name` | Name shown in UI | `Celiuz Vault` |
 
 ## Security notes
 
@@ -91,7 +91,10 @@ The SQLite DB (`data.sqlite`) and upload folder are created automatically on fir
 .
 ├── public/             # web root (only this is exposed)
 │   ├── index.php       # front controller + router
-│   └── .htaccess       # pretty URLs + upload limits
+│   ├── .htaccess       # pretty URLs + upload limits
+│   └── assets/
+│       ├── app.js      # Alpine component (upload, share, preview)
+│       └── app.css     # tiny extras (Tailwind via CDN)
 ├── app/
 │   ├── bootstrap.php   # config, session, db init
 │   ├── db.php          # SQLite schema + access
@@ -101,9 +104,6 @@ The SQLite DB (`data.sqlite`) and upload folder are created automatically on fir
 │   ├── actions.php     # route handlers + view renderer
 │   └── lib/phpqrcode.php  # vendored QR generator (LGPL-3.0, see file header)
 ├── views/              # PHP templates (layout, login, dashboard, share, error)
-├── assets/
-│   ├── app.js          # Alpine component (upload, share, preview)
-│   └── app.css         # tiny extras (Tailwind via CDN)
 ├── storage/uploads/    # your files (gitignored, outside web root in prod)
 ├── config.php          # your settings (gitignored)
 ├── config.example.php  # template to copy
