@@ -366,14 +366,16 @@ function file_view_model(array $file): array
 
 function icon_for(string $kind): string
 {
+    // Returns a Lucide icon name (design-only); rendered as SVG on the client.
     return [
-        'image'   => '🖼️',
-        'video'   => '🎬',
-        'audio'   => '🎵',
-        'pdf'     => '📕',
-        'text'    => '📄',
-        'archive' => '🗜️',
-    ][$kind] ?? '📦';
+        'image'   => 'image',
+        'video'   => 'video',
+        'audio'   => 'music',
+        'pdf'     => 'file-text',
+        'text'    => 'file-text',
+        'archive' => 'archive',
+        'note'    => 'note',
+    ][$kind] ?? 'file';
 }
 
 // --- View renderer ----------------------------------------------------

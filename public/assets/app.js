@@ -9,6 +9,21 @@ function humanSize(bytes) {
   return (i === 0 ? n : n.toFixed(1)) + ' ' + u[i];
 }
 
+// Design-only: render a Lucide outline icon by name as inline SVG.
+// Mirrors app/helpers.php lucide() so server- and client-rendered icons match.
+const LUCIDE = {
+  file: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><polyline points="14 2 14 8 20 8"/>',
+  image: '<rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>',
+  video: '<path d="m22 8-6 4 6 4V8Z"/><rect width="14" height="12" x="2" y="6" rx="2" ry="2"/>',
+  music: '<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>',
+  archive: '<rect width="20" height="5" x="2" y="3" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/>',
+  note: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13h8M8 17h5"/>',
+};
+function fileIconSvg(name, cls = 'w-10 h-10') {
+  const body = LUCIDE[name] || LUCIDE.file;
+  return '<svg class="' + cls + '" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + body + '</svg>';
+}
+
 function vault(initial) {
   return {
     theme: localStorage.getItem('cv-theme') || 'light',
@@ -31,6 +46,7 @@ function vault(initial) {
     noteModal: false,
     noteForm: { id: null, title: '', body: '' },
     humanSize,
+    fileIconSvg,
 
     init() {
       // Apply theme class to <html>.
