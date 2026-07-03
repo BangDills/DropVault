@@ -8,7 +8,7 @@ ob_start();
 $vm = array_map('file_view_model', $files);
 ?>
 <script>window.VAULT_BASE = <?= json_encode(url('')) ?>;</script>
-<div x-data="vault(<?= e(json_encode(['files' => $vm, 'folders' => $folders, 'chain' => $chain, 'folder' => $folderId, 'stats' => $stats], JSON_UNESCAPED_UNICODE)) ?>)"
+<div x-data="vault(<?= e(json_encode(['files' => $vm, 'folders' => $folders, 'notes' => $notes, 'chain' => $chain, 'folder' => $folderId, 'stats' => $stats], JSON_UNESCAPED_UNICODE)) ?>)"
      @drop.prevent="onDrop" @dragover.prevent @paste.window="onPaste"
      class="max-w-6xl mx-auto p-4 sm:p-6">
 
@@ -74,12 +74,15 @@ $vm = array_map('file_view_model', $files);
     </template>
   </div>
 
-  <!-- New folder bar -->
-  <form @submit.prevent="createFolder()" class="flex gap-2 mb-4">
-    <input x-model="newFolder" type="text" placeholder="Nama folder baru..."
-           class="flex-1 px-3 py-2 rounded-lg bg-cv-surface border border-cv-border focus:border-cv-accent outline-none text-sm">
-    <button class="px-4 py-2 rounded-lg bg-cv-surface hover:bg-cv-bg border border-cv-border text-sm font-medium">+ Folder</button>
-  </form>
+  <!-- New folder + note bar -->
+  <div class="flex gap-2 mb-4">
+    <form @submit.prevent="createFolder()" class="flex gap-2 flex-1">
+      <input x-model="newFolder" type="text" placeholder="Nama folder baru..."
+             class="flex-1 px-3 py-2 rounded-lg bg-cv-surface border border-cv-border focus:border-cv-accent outline-none text-sm">
+      <button class="px-4 py-2 rounded-lg bg-cv-surface hover:bg-cv-bg border border-cv-border text-sm font-medium">+ Folder</button>
+    </form>
+    <button @click="openNote(null)" class="px-4 py-2 rounded-lg bg-cv-accent text-cv-accentfg text-sm font-medium hover:opacity-90">+ Catatan</button>
+  </div>
 
   <!-- Folders -->
   <div x-show="folders.length" class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3 mb-4">
@@ -91,9 +94,27 @@ $vm = array_map('file_view_model', $files);
     </template>
   </div>
 
+  <!-- Notes -->
+  <div x-show="notes.length" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
+    <template x-for="n in notes" :key="'n'+n.id">
+      <div class="group relative bg-cv-surface rounded-xl p-4 border border-cv-border hover:border-cv-accent transition cursor-pointer" @click="openNote(n)">
+        <div class="flex items-start gap-2 mb-2">
+          <span class="text-xl">📝</span>
+          <p class="text-sm font-semibold truncate flex-1" x-text="n.title"></p>
+        </div>
+        <p class="text-xs text-cv-muted line-clamp-4 whitespace-pre-wrap break-words" x-html="n.html"></p>
+        <div class="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition">
+          <button @click.stop="deleteNote(n)" class="p-1.5 rounded-lg bg-cv-surface/90 border border-cv-border hover:bg-red-600 hover:text-white shadow" title="Hapus">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+          </button>
+        </div>
+      </div>
+    </template>
+  </div>
+
   <!-- Files -->
-  <div x-show="!files.length" class="text-center py-12 text-cv-muted">
-    <p>Belum ada file. Upload pertamamu!</p>
+  <div x-show="!files.length && !notes.length" class="text-center py-12 text-cv-muted">
+    <p>Belum ada file atau catatan. Upload pertamamu!</p>
   </div>
   <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
     <template x-for="f in files" :key="f.id">
@@ -158,6 +179,23 @@ $vm = array_map('file_view_model', $files);
       <template x-if="modalFile && !['image','video','audio','pdf','text'].includes(modalFile.kind)">
         <div class="text-center text-white"><span class="text-6xl" x-text="modalFile.icon"></span><p class="mt-2" x-text="modalFile.name"></p><a :href="modalFile.preview" download class="mt-4 inline-block px-4 py-2 rounded-lg bg-cv-accent text-cv-accentfg">Download</a></div>
       </template>
+    </div>
+  </div>
+
+  <!-- Note editor modal -->
+  <div x-show="noteModal" x-cloak @keydown.escape.window="noteModal=false" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" @click.self="closeNote()">
+    <div class="bg-cv-surface rounded-2xl p-6 w-full max-w-lg border border-cv-border flex flex-col max-h-[90vh]">
+      <input x-model="noteForm.title" type="text" placeholder="Judul catatan..."
+             class="w-full px-3 py-2 rounded-lg bg-cv-bg border border-cv-border focus:border-cv-accent outline-none font-semibold mb-3">
+      <textarea x-model="noteForm.body" rows="10" placeholder="Tulis catatan... URL otomatis jadi link."
+                class="w-full flex-1 px-3 py-2 rounded-lg bg-cv-bg border border-cv-border focus:border-cv-accent outline-none text-sm resize-none font-mono"></textarea>
+      <div class="flex justify-between items-center mt-4 gap-2">
+        <button x-show="noteForm.id" @click="deleteNote({id: noteForm.id})" class="px-3 py-2 rounded-lg text-sm text-red-600 dark:text-red-400 hover:underline">Hapus</button>
+        <div class="flex gap-2 ml-auto">
+          <button @click="closeNote()" class="px-4 py-2 rounded-lg bg-cv-bg border border-cv-border text-sm">Batal</button>
+          <button @click="saveNote()" class="px-4 py-2 rounded-lg bg-cv-accent text-cv-accentfg text-sm font-medium hover:opacity-90">Simpan</button>
+        </div>
+      </div>
     </div>
   </div>
 

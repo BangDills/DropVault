@@ -125,3 +125,17 @@ function check_password(string $input): bool
     $expected = config()['password'];
     return hash_equals($expected, $input);
 }
+
+// Escape text, then turn URLs into clickable links. For note display.
+function auto_link(string $text): string
+{
+    $esc = e($text);
+    $pattern = '~(https?://[^\s<]+)~i';
+    return preg_replace_callback($pattern, function ($m) {
+        $url = $m[1];
+        // Trim trailing punctuation that's likely not part of the URL.
+        $url = rtrim($url, ".,;:!?)]}\"'");
+        $tail = substr($m[1], strlen($url));
+        return '<a href="' . e($url) . '" target="_blank" rel="noopener noreferrer" class="text-cv-accent underline hover:opacity-80">' . e($url) . '</a>' . e($tail);
+    }, $esc);
+}

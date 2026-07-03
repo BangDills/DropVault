@@ -6,6 +6,7 @@ declare(strict_types=1);
 
 require APP_ROOT . '/app/files.php';
 require APP_ROOT . '/app/shares.php';
+require APP_ROOT . '/app/notes.php';
 
 function json_out($data, int $code = 200): void
 {
@@ -57,6 +58,7 @@ function dashboard(string $path): void
     view('dashboard', [
         'files'    => list_files($folderId),
         'folders'  => list_folders($folderId),
+        'notes'    => array_map('note_view_model', list_notes($folderId)),
         'chain'    => folder_chain($folderId),
         'folderId' => $folderId,
         'stats'    => ['size' => total_size(), 'count' => file_count()],
@@ -193,6 +195,9 @@ function api(string $path): void
             $path === '/api/upload' && $method === 'POST' => api_upload(),
             $path === '/api/folder' && $method === 'POST' => api_folder(),
             $path === '/api/share' && $method === 'POST' => api_share(),
+            $path === '/api/note' && $method === 'POST' => api_note_create(),
+            str_starts_with($path, '/api/note/') && $method === 'PUT' => api_note_update(),
+            str_starts_with($path, '/api/note/') && $method === 'DELETE' => api_note_delete(),
             str_starts_with($path, '/api/file/') && $method === 'DELETE' => api_delete_file(),
             str_starts_with($path, '/api/file/') && $method === 'PATCH' => api_move_file(),
             str_starts_with($path, '/api/share/') && $method === 'DELETE' => api_delete_share(),
@@ -288,6 +293,56 @@ function api_delete_share(): void
     $id = (int)substr($_SERVER['PATH_INFO'] ?? '', strlen('/api/share/'));
     delete_share($id);
     json_out(['ok' => true]);
+}
+
+// --- Notes ------------------------------------------------------------
+
+function api_note_create(): void
+{
+    $body = json_in();
+    $title = (string)($body['title'] ?? '');
+    $text = (string)($body['body'] ?? '');
+    $folder = isset($body['folder']) && $body['folder'] !== '' ? (int)$body['folder'] : null;
+    $note = create_note($title, $text, $folder);
+    json_out(note_view_model($note));
+}
+
+function api_note_update(): void
+{
+    $id = (int)substr($_SERVER['PATH_INFO'] ?? '', strlen('/api/note/'));
+    $body = json_in();
+    $title = (string)($body['title'] ?? '');
+    $text = (string)($body['body'] ?? '');
+    $folder = isset($body['folder']) && $body['folder'] !== '' ? (int)$body['folder'] : null;
+    $note = update_note($id, $title, $text, $folder);
+    if (!$note) {
+        json_out(['error' => 'Not found'], 404);
+        return;
+    }
+    json_out(note_view_model($note));
+}
+
+function api_note_delete(): void
+{
+    $id = (int)substr($_SERVER['PATH_INFO'] ?? '', strlen('/api/note/'));
+    delete_note($id);
+    json_out(['ok' => true]);
+}
+
+function note_view_model(array $note): array
+{
+    $title = trim($note['title']);
+    return [
+        'id'      => (int)$note['id'],
+        'kind'    => 'note',
+        'title'   => $title !== '' ? $title : 'Catatan tanpa judul',
+        'body'    => $note['body'],
+        'html'    => auto_link((string)$note['body']),
+        'icon'    => '📝',
+        'updated' => $note['updated_at'],
+        'preview' => null,
+        'size_h'  => null,
+    ];
 }
 
 // --- View model (what the UI needs) ----------------------------------

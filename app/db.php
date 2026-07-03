@@ -54,8 +54,20 @@ function db_init(string $dbPath): void
             FOREIGN KEY (file_id) REFERENCES files(id) ON DELETE CASCADE
         )
     ");
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS notes (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            title       TEXT    NOT NULL DEFAULT '',
+            body        TEXT    NOT NULL DEFAULT '',
+            folder_id   INTEGER NULL,
+            created_at  TEXT    NOT NULL DEFAULT (datetime('now')),
+            updated_at  TEXT    NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (folder_id) REFERENCES folders(id) ON DELETE SET NULL
+        )
+    ");
     $pdo->exec("CREATE INDEX IF NOT EXISTS idx_files_folder ON files(folder_id)");
     $pdo->exec("CREATE INDEX IF NOT EXISTS idx_folders_parent ON folders(parent_id)");
+    $pdo->exec("CREATE INDEX IF NOT EXISTS idx_notes_folder ON notes(folder_id)");
 
     // Migrations: add columns if missing (idempotent, works on existing DBs).
     $cols = $pdo->query('PRAGMA table_info(files)')->fetchAll(PDO::FETCH_COLUMN, 1);

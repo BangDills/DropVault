@@ -27,6 +27,9 @@ function vault(initial) {
     shareForm: { password: '', ttl_hours: '' },
     shareResult: null,
     copied: false,
+    notes: initial.notes || [],
+    noteModal: false,
+    noteForm: { id: null, title: '', body: '' },
     humanSize,
 
     init() {
@@ -145,6 +148,46 @@ function vault(initial) {
         const abs = new URL(res.url, window.location.origin).href;
         this.shareResult = { ...res, url: abs };
       });
+    },
+
+    // --- Notes ---
+
+    openNote(n) {
+      this.noteForm = n
+        ? { id: n.id, title: n.title === 'Catatan tanpa judul' ? '' : n.title, body: n.body }
+        : { id: null, title: '', body: '' };
+      this.noteModal = true;
+    },
+
+    closeNote() {
+      this.noteModal = false;
+    },
+
+    saveNote() {
+      const base = window.VAULT_BASE + '/api/note' + (this.folder != null ? '?folder=' + this.folder : '');
+      const method = this.noteForm.id ? 'PUT' : 'POST';
+      const url = this.noteForm.id ? window.VAULT_BASE + '/api/note/' + this.noteForm.id : base;
+      fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: this.noteForm.title, body: this.noteForm.body, folder: this.folder }),
+      }).then(r => r.json()).then(n => {
+        if (n.error) { alert(n.error); return; }
+        const idx = this.notes.findIndex(x => x.id === n.id);
+        if (idx >= 0) this.notes.splice(idx, 1, n);
+        else this.notes.unshift(n);
+        this.closeNote();
+      });
+    },
+
+    deleteNote(n) {
+      if (!n || !n.id) { this.closeNote(); return; }
+      if (!confirm('Hapus catatan ini?')) return;
+      fetch(window.VAULT_BASE + '/api/note/' + n.id, { method: 'DELETE' })
+        .then(() => {
+          this.notes = this.notes.filter(x => x.id !== n.id);
+          if (this.noteForm.id === n.id) this.closeNote();
+        });
     },
 
     async copy(text) {

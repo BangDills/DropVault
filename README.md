@@ -11,6 +11,7 @@ Self-hosted personal file hosting — single PHP app, zero build step, made for 
 - **Video thumbnails** — auto-generated via ffmpeg (graceful fallback to icon if ffmpeg is absent, common on shared hosting)
 - **Share links**: custom token, optional password, optional expiry, hit counter
 - **QR codes** for share links — generated locally on your server (no third-party API), scan with a phone to open/download
+- **Notes** — text notes with titles; URLs auto-link on display, stored alongside files
 - **Folders** with breadcrumbs (nested, drag-ready structure)
 - **Signed download URLs** — files live outside the web root, served only via short-lived HMAC tokens
 - **Dark / light theme** toggle, persisted
@@ -117,6 +118,9 @@ The SQLite DB (`data.sqlite`) and upload folder are created automatically on fir
 | `POST` | `/api/upload?folder=<id>` | Upload file(s) — `multipart/form-data`, field `file` or `file[]` |
 | `POST` | `/api/folder` | Create folder — `{name, parent}` |
 | `POST` | `/api/share` | Create share — `{file_id, password?, ttl_hours?}` → `{url, token}` |
+| `POST` | `/api/note` | Create note — `{title, body, folder?}` |
+| `PUT` | `/api/note/<id>` | Update note — `{title, body, folder?}` |
+| `DELETE` | `/api/note/<id>` | Delete note |
 | `DELETE` | `/api/file/<id>` | Delete file |
 | `PATCH` | `/api/file/<id>` | Move file — `{folder}` |
 | `DELETE` | `/api/share/<id>` | Delete share |
