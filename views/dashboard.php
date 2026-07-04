@@ -103,7 +103,7 @@ $v = $view ?? 'dashboard';
       <div class="cv-actions-grid">
         <button @click="createFolderPrompt()" class="cv-action-card"><div class="cv-action-icon"><?= lucide('folder', 'w-6 h-6') ?></div><span class="cv-action-label">New Folder</span><span class="cv-action-sub">Create folder</span></button>
         <button @click="$refs.fileInput.click()" class="cv-action-card"><div class="cv-action-icon cv-action-icon--accent"><?= lucide('upload', 'w-6 h-6') ?></div><span class="cv-action-label">Upload Files</span><span class="cv-action-sub">From device</span></button>
-        <button @click="shareFirstFile()" class="cv-action-card"><div class="cv-action-icon"><?= lucide('link', 'w-6 h-6') ?></div><span class="cv-action-label">Share File</span><span class="cv-action-sub">Get link</span></button>
+        <a href="<?= e(url('/?view=files')) ?>" class="cv-action-card"><div class="cv-action-icon"><?= lucide('link', 'w-6 h-6') ?></div><span class="cv-action-label">Share File</span><span class="cv-action-sub">Go to My Files</span></a>
         <button @click="openNote(null)" class="cv-action-card"><div class="cv-action-icon"><?= lucide('file-plus', 'w-6 h-6') ?></div><span class="cv-action-label">Create Note</span><span class="cv-action-sub">Quick note</span></button>
       </div>
       <input type="file" x-ref="fileInput" multiple class="hidden" @change="uploadFiles($event.target.files)">
