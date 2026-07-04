@@ -190,7 +190,7 @@ function file_path(array $file): string
 function list_files(?int $folderId): array
 {
     $stmt = db(config()['db_path'])->prepare(
-        'SELECT * FROM files WHERE folder_id IS ? ORDER BY created_at DESC'
+        'SELECT * FROM files WHERE folder_id IS ? AND deleted_at IS NULL ORDER BY created_at DESC'
     );
     // SQLite needs explicit NULL handling
     if ($folderId === null) {
@@ -248,7 +248,28 @@ function folder_chain(?int $folderId): array
     return array_reverse($chain);
 }
 
+// Soft-delete: moves file to trash instead of permanent deletion.
 function delete_file(int $id): void
+{
+    soft_delete_file($id);
+}
+
+function soft_delete_file(int $id): void
+{
+    db(config()['db_path'])
+        ->prepare("UPDATE files SET deleted_at = datetime('now') WHERE id = ?")
+        ->execute([$id]);
+}
+
+function restore_file(int $id): void
+{
+    db(config()['db_path'])
+        ->prepare('UPDATE files SET deleted_at = NULL WHERE id = ?')
+        ->execute([$id]);
+}
+
+// Permanent delete: removes file blob, versions, and DB row.
+function permanent_delete_file(int $id): void
 {
     $file = get_file($id);
     if (!$file) return;
@@ -266,6 +287,15 @@ function delete_file(int $id): void
     db(config()['db_path'])->prepare('DELETE FROM files WHERE id = ?')->execute([$id]);
 }
 
+function empty_trash(): void
+{
+    $pdo = db(config()['db_path']);
+    $trashed = $pdo->query('SELECT id FROM files WHERE deleted_at IS NOT NULL')->fetchAll();
+    foreach ($trashed as $row) {
+        permanent_delete_file((int)$row['id']);
+    }
+}
+
 function move_file(int $id, ?int $folderId): void
 {
     db(config()['db_path'])
@@ -275,10 +305,71 @@ function move_file(int $id, ?int $folderId): void
 
 function total_size(): int
 {
-    return (int)db(config()['db_path'])->query('SELECT COALESCE(SUM(size),0) FROM files')->fetchColumn();
+    return (int)db(config()['db_path'])->query('SELECT COALESCE(SUM(size),0) FROM files WHERE deleted_at IS NULL')->fetchColumn();
 }
 
 function file_count(): int
 {
-    return (int)db(config()['db_path'])->query('SELECT COUNT(*) FROM files')->fetchColumn();
+    return (int)db(config()['db_path'])->query('SELECT COUNT(*) FROM files WHERE deleted_at IS NULL')->fetchColumn();
+}
+
+// --- Recent files (across all folders, non-deleted) ---
+
+function list_recent_files(int $limit = 50): array
+{
+    $stmt = db(config()['db_path'])->prepare(
+        'SELECT * FROM files WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT ?'
+    );
+    $stmt->execute([$limit]);
+    return $stmt->fetchAll();
+}
+
+// --- Trash ---
+
+function list_trashed_files(): array
+{
+    return db(config()['db_path'])
+        ->query('SELECT * FROM files WHERE deleted_at IS NOT NULL ORDER BY deleted_at DESC')
+        ->fetchAll();
+}
+
+function trash_count(): int
+{
+    return (int)db(config()['db_path'])->query('SELECT COUNT(*) FROM files WHERE deleted_at IS NOT NULL')->fetchColumn();
+}
+
+// --- Favorites ---
+
+function toggle_favorite(int $fileId): bool
+{
+    $pdo = db(config()['db_path']);
+    $stmt = $pdo->prepare('SELECT id FROM favorites WHERE file_id = ?');
+    $stmt->execute([$fileId]);
+    if ($stmt->fetch()) {
+        $pdo->prepare('DELETE FROM favorites WHERE file_id = ?')->execute([$fileId]);
+        return false; // unfavorited
+    }
+    $pdo->prepare('INSERT INTO favorites (file_id) VALUES (?)')->execute([$fileId]);
+    return true; // favorited
+}
+
+function list_favorites(): array
+{
+    return db(config()['db_path'])
+        ->query('SELECT f.* FROM files f JOIN favorites fv ON fv.file_id = f.id WHERE f.deleted_at IS NULL ORDER BY fv.created_at DESC')
+        ->fetchAll();
+}
+
+function is_favorited(int $fileId): bool
+{
+    $stmt = db(config()['db_path'])->prepare('SELECT 1 FROM favorites WHERE file_id = ?');
+    $stmt->execute([$fileId]);
+    return (bool)$stmt->fetch();
+}
+
+function favorite_ids(): array
+{
+    return db(config()['db_path'])
+        ->query('SELECT file_id FROM favorites')
+        ->fetchAll(PDO::FETCH_COLUMN);
 }

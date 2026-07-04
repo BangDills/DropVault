@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= e($appName) ?></title>
+    <meta name="description" content="<?= e($appName) ?> — Personal file hosting & vault">
     <style>[x-cloak]{display:none!important}</style>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -13,17 +14,18 @@
         theme: {
           extend: {
             colors: {
-              // Bento workspace palette — light-first, premium neutral + modern blue.
               cv: {
-                bg:      '#fbfbfc',   // app background (very light grey)
-                surface: '#ffffff',   // cards / panels
-                border:  '#ececef',   // hairline borders
-                text:    '#1f2024',   // primary text
-                muted:   '#71717a',   // secondary text
-                faint:   '#a1a1aa',   // tertiary / placeholders
-                // Primary accent: modern blue. Success: green (status only).
-                accent:  '#2563eb', accenthover: '#1d4ed8', accentfg: '#ffffff',
+                bg:      '#f8f9fb',
+                surface: '#ffffff',
+                border:  '#e8eaef',
+                text:    '#1a1d26',
+                muted:   '#6b7280',
+                faint:   '#9ca3af',
+                accent:  '#4f7cff', accenthover: '#3b63e0', accentfg: '#ffffff',
                 success: '#16a34a',
+                sidebar: '#fafbfd',
+                sbhover: '#eef1f8',
+                sbactive: '#edf2ff',
               },
             },
             borderRadius: { bento: '16px' },

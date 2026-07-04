@@ -6,6 +6,10 @@ Self-hosted personal file hosting — single PHP app, zero build step, made for 
 
 ## Features
 
+- **Sidebar Layout with 6 Views**: Dashboard, My Files, Recent, Shared, Favorites, and Trash
+- **Trash Bin (Soft-Delete)**: Safe deletion mechanism (soft-delete), allowing file restoration, individual permanent deletion, or bulk empty
+- **Favorites (Star)**: Mark important files as favorites for quick access under the Favorites view
+- **Password Changer**: Change and hash your vault login password directly from the Settings page
 - **Drag & drop / multi-file / paste (Ctrl+V) upload** with live progress
 - **Built-in preview**: image, video, audio, PDF, text/code
 - **Video thumbnails** — auto-generated via ffmpeg (graceful fallback to icon if ffmpeg is absent, common on shared hosting)
@@ -134,9 +138,14 @@ The SQLite DB (`data.sqlite`) and upload folder are created automatically on fir
 | `GET` | `/api/file/<id>/versions` | List archived versions of a file |
 | `POST` | `/api/file/<id>/versions` | Restore a version — `{version_id}` |
 | `DELETE` | `/api/version/<id>` | Delete an archived version |
-| `DELETE` | `/api/file/<id>` | Delete file |
-| `PATCH` | `/api/file/<id>` | Move file — `{folder}` |
+| `DELETE` | `/api/file/<id>` | Move file to Trash (soft-delete) |
+| `PATCH` | `/api/file/<id>` | Move file to folder — `{folder}` |
 | `DELETE` | `/api/share/<id>` | Delete share |
+| `POST` | `/api/favorite/<id>` | Toggle favorite status of a file |
+| `POST` | `/api/trash/<id>/restore` | Restore file from Trash |
+| `DELETE` | `/api/trash/<id>` | Permanently delete file from storage |
+| `DELETE` | `/api/trash` | Permanently delete all files in Trash |
+| `POST` | `/api/password` | Change vault login password — `{current_password, new_password}` |
 
 ## License
 

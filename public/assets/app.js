@@ -31,16 +31,18 @@ function vault(initial) {
     folders: initial.folders || [],
     chain: initial.chain || [],
     folder: initial.folder || null,
-    stats: initial.stats || { size: 0, count: 0 },
+    stats: initial.stats || { size: 0, count: 0, trash: 0 },
     dragging: false,
     uploads: [],
     newFolder: '',
+    folderModal: false,
     modal: false,
     modalFile: null,
     shareModal: false,
     shareFile: null,
     shareForm: { password: '', ttl_hours: '' },
     shareResult: null,
+    passwordForm: { current: '', new: '', confirm: '' },
     copied: false,
     notes: initial.notes || [],
     noteModal: false,
@@ -51,6 +53,9 @@ function vault(initial) {
     versionFile: null,
     versionList: [],
     toasts: [],
+    sidebarOpen: false,
+    currentView: initial.view || 'dashboard',
+    shares: initial.shares || [],
     humanSize,
     fileIconSvg,
 
@@ -154,6 +159,12 @@ function vault(initial) {
       });
     },
 
+    createFolderPrompt() {
+      this.newFolder = '';
+      this.folderModal = true;
+      this.$nextTick(() => { this.$refs.folderNameInput?.focus(); });
+    },
+
     createFolder() {
       if (!this.newFolder.trim()) return;
       fetch(window.VAULT_BASE + '/api/folder', {
@@ -163,6 +174,7 @@ function vault(initial) {
       }).then(r => r.json()).then(res => {
         this.folders.push({ id: res.id, name: res.name, parent: res.parent });
         this.newFolder = '';
+        this.folderModal = false;
         this.toast('Folder dibuat');
       });
     },
@@ -188,6 +200,14 @@ function vault(initial) {
       this.shareResult = null;
       this.shareForm = { password: '', ttl_hours: '' };
       this.shareModal = true;
+    },
+
+    shareFirstFile() {
+      if (this.files.length) {
+        this.shareFile(this.files[0]);
+      } else {
+        this.toast('Belum ada file untuk di-share', true);
+      }
     },
 
     createShare() {
@@ -315,6 +335,88 @@ function vault(initial) {
       this.copied = true;
       this.toast('Tersalin');
       setTimeout(() => this.copied = false, 1500);
+    },
+
+    // --- Favorites ---
+    toggleFavorite(f) {
+      fetch(window.VAULT_BASE + '/api/favorite/' + f.id, { method: 'POST' })
+        .then(r => r.json())
+        .then(res => {
+          f.favorited = res.favorited;
+          this.toast(res.favorited ? 'Added to favorites' : 'Removed from favorites');
+        });
+    },
+
+    // --- Trash ---
+    restoreFromTrash(f) {
+      fetch(window.VAULT_BASE + '/api/trash/' + f.id + '/restore', { method: 'POST' })
+        .then(r => r.json())
+        .then(() => {
+          this.files = this.files.filter(x => x.id !== f.id);
+          this.stats.trash--;
+          this.toast('File restored');
+        });
+    },
+
+    permanentDelete(f) {
+      if (!confirm(`Permanently delete "${f.name}"? This cannot be undone.`)) return;
+      fetch(window.VAULT_BASE + '/api/trash/' + f.id, { method: 'DELETE' })
+        .then(() => {
+          this.files = this.files.filter(x => x.id !== f.id);
+          this.stats.trash--;
+          this.toast('Permanently deleted');
+        });
+    },
+
+    emptyTrash() {
+      if (!confirm('Permanently delete all files in trash?')) return;
+      fetch(window.VAULT_BASE + '/api/trash', { method: 'DELETE' })
+        .then(() => {
+          this.files = [];
+          this.stats.trash = 0;
+          this.toast('Trash emptied');
+        });
+    },
+
+    // --- Shared links ---
+    deleteShareById(id) {
+      if (!confirm('Delete this share link?')) return;
+      fetch(window.VAULT_BASE + '/api/share/' + id, { method: 'DELETE' })
+        .then(() => {
+          this.shares = this.shares.filter(s => s.id !== id);
+          this.toast('Share link deleted');
+        });
+    },
+
+    changePassword() {
+      if (this.passwordForm.new !== this.passwordForm.confirm) {
+        this.toast('Password baru dan konfirmasi tidak cocok', true);
+        return;
+      }
+      fetch(window.VAULT_BASE + '/api/password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          current_password: this.passwordForm.current,
+          new_password: this.passwordForm.new
+        }),
+      })
+      .then(async r => {
+        const data = await r.json();
+        if (!r.ok) {
+          throw new Error(data.error || 'Gagal mengubah password');
+        }
+        return data;
+      })
+      .then(() => {
+        this.toast('Password berhasil diperbarui');
+        this.passwordForm.current = '';
+        this.passwordForm.new = '';
+        this.passwordForm.confirm = '';
+      })
+      .catch(err => {
+        this.toast(err.message, true);
+      });
     },
   };
 }

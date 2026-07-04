@@ -54,15 +54,58 @@ function logout(): void
 
 function dashboard(string $path): void
 {
+    $view = $_GET['view'] ?? 'dashboard';
     $folderId = isset($_GET['folder']) && $_GET['folder'] !== '' ? (int)$_GET['folder'] : null;
-    view('dashboard', [
-        'files'    => list_files($folderId),
-        'folders'  => list_folders($folderId),
-        'notes'    => array_map('note_view_model', list_notes($folderId)),
-        'chain'    => folder_chain($folderId),
+
+    // Base data shared across all views.
+    $data = [
+        'view'     => $view,
         'folderId' => $folderId,
-        'stats'    => ['size' => total_size(), 'count' => file_count()],
-    ]);
+        'stats'    => ['size' => total_size(), 'count' => file_count(), 'trash' => trash_count()],
+        'favIds'   => favorite_ids(),
+    ];
+
+    switch ($view) {
+        case 'files':
+            $data['files']   = list_files($folderId);
+            $data['folders'] = list_folders($folderId);
+            $data['notes']   = array_map('note_view_model', list_notes($folderId));
+            $data['chain']   = folder_chain($folderId);
+            break;
+        case 'recent':
+            $data['files']   = list_recent_files(50);
+            $data['folders'] = [];
+            $data['notes']   = [];
+            $data['chain']   = [];
+            break;
+        case 'shared':
+            $data['files']   = [];
+            $data['folders'] = [];
+            $data['notes']   = [];
+            $data['chain']   = [];
+            $data['shares']  = list_shares();
+            break;
+        case 'favorites':
+            $data['files']   = list_favorites();
+            $data['folders'] = [];
+            $data['notes']   = [];
+            $data['chain']   = [];
+            break;
+        case 'trash':
+            $data['files']   = list_trashed_files();
+            $data['folders'] = [];
+            $data['notes']   = [];
+            $data['chain']   = [];
+            break;
+        default: // 'dashboard'
+            $data['files']   = list_files($folderId);
+            $data['folders'] = list_folders($folderId);
+            $data['notes']   = array_map('note_view_model', list_notes($folderId));
+            $data['chain']   = folder_chain($folderId);
+            break;
+    }
+
+    view('dashboard', $data);
 }
 
 // --- File raw (inline preview, authed) -------------------------------
@@ -201,11 +244,24 @@ function api(string $path): void
             $GLOBALS['__vver'] = (int)$m[1];
             if ($method === 'DELETE') { api_delete_version(); return; }
         }
+        // Favorite toggle.
+        if (preg_match('#^/api/favorite/(\d+)$#', $path, $m)) {
+            if ($method === 'POST') { api_toggle_favorite((int)$m[1]); return; }
+        }
+        // Trash routes.
+        if (preg_match('#^/api/trash/(\d+)/restore$#', $path, $m)) {
+            if ($method === 'POST') { api_restore_from_trash((int)$m[1]); return; }
+        }
+        if (preg_match('#^/api/trash/(\d+)$#', $path, $m)) {
+            if ($method === 'DELETE') { api_permanent_delete((int)$m[1]); return; }
+        }
         match (true) {
             $path === '/api/upload' && $method === 'POST' => api_upload(),
             $path === '/api/folder' && $method === 'POST' => api_folder(),
             $path === '/api/share' && $method === 'POST' => api_share(),
             $path === '/api/note' && $method === 'POST' => api_note_create(),
+            $path === '/api/trash' && $method === 'DELETE' => api_empty_trash(),
+            $path === '/api/password' && $method === 'POST' => api_change_password(),
             str_starts_with($path, '/api/note/') && $method === 'PUT' => api_note_update(),
             str_starts_with($path, '/api/note/') && $method === 'DELETE' => api_note_delete(),
             str_starts_with($path, '/api/file/') && $method === 'DELETE' => api_delete_file(),
@@ -396,9 +452,78 @@ function note_view_model(array $note): array
     ];
 }
 
+// --- Favorites API ---------------------------------------------------
+
+function api_toggle_favorite(int $fileId): void
+{
+    $isFav = toggle_favorite($fileId);
+    json_out(['ok' => true, 'favorited' => $isFav]);
+}
+
+// --- Trash API -------------------------------------------------------
+
+function api_restore_from_trash(int $id): void
+{
+    restore_file($id);
+    json_out(['ok' => true]);
+}
+
+function api_permanent_delete(int $id): void
+{
+    permanent_delete_file($id);
+    json_out(['ok' => true]);
+}
+
+function api_empty_trash(): void
+{
+    empty_trash();
+    json_out(['ok' => true]);
+}
+
+function api_change_password(): void
+{
+    $body = json_in();
+    $current = (string)($body['current_password'] ?? '');
+    $new = (string)($body['new_password'] ?? '');
+
+    if ($current === '' || $new === '') {
+        json_out(['error' => 'Semua field harus diisi'], 400);
+        return;
+    }
+
+    if (!check_password($current)) {
+        json_out(['error' => 'Password saat ini salah'], 400);
+        return;
+    }
+
+    $newHashed = password_hash($new, PASSWORD_DEFAULT);
+    $configPath = APP_ROOT . '/config.php';
+
+    if (!is_writable($configPath)) {
+        json_out(['error' => 'File config.php tidak dapat ditulis oleh server'], 500);
+        return;
+    }
+
+    $content = file_get_contents($configPath);
+    $newContent = preg_replace_callback(
+        "/('password'\s*=>\s*)(['\"]).*?\\2/s",
+        function ($matches) use ($newHashed) {
+            return $matches[1] . "'" . addcslashes($newHashed, "'\\") . "'";
+        },
+        $content
+    );
+
+    if ($newContent === null || file_put_contents($configPath, $newContent) === false) {
+        json_out(['error' => 'Gagal menyimpan password baru ke config.php'], 500);
+        return;
+    }
+
+    json_out(['ok' => true]);
+}
+
 // --- View model (what the UI needs) ----------------------------------
 
-function file_view_model(array $file): array
+function file_view_model(array $file, array $favIds = []): array
 {
     $kind = file_kind($file['mime'], $file['name']);
     return [
@@ -409,10 +534,12 @@ function file_view_model(array $file): array
         'size_h'    => human_size((int)$file['size']),
         'kind'      => $kind,
         'created'   => $file['created_at'],
+        'deleted'   => $file['deleted_at'] ?? null,
         'preview'   => url('/raw/' . $file['id']),
         'thumb'     => $file['thumb'] !== null ? url('/thumb/' . $file['id']) : null,
         'icon'      => icon_for($kind),
         'versions'  => version_count((int)$file['id']),
+        'favorited' => in_array((int)$file['id'], $favIds, true),
     ];
 }
 

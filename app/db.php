@@ -90,9 +90,24 @@ function db_init(string $dbPath): void
     $pdo->exec("CREATE INDEX IF NOT EXISTS idx_notes_folder ON notes(folder_id)");
     $pdo->exec("CREATE INDEX IF NOT EXISTS idx_versions_file ON file_versions(file_id)");
 
+    // Favorites table.
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS favorites (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            file_id     INTEGER NOT NULL UNIQUE,
+            created_at  TEXT    NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (file_id) REFERENCES files(id) ON DELETE CASCADE
+        )
+    ");
+    $pdo->exec("CREATE INDEX IF NOT EXISTS idx_favorites_file ON favorites(file_id)");
+
     // Migrations: add columns if missing (idempotent, works on existing DBs).
     $cols = $pdo->query('PRAGMA table_info(files)')->fetchAll(PDO::FETCH_COLUMN, 1);
     if (!in_array('thumb', $cols, true)) {
         $pdo->exec('ALTER TABLE files ADD COLUMN thumb TEXT NULL');
     }
+    if (!in_array('deleted_at', $cols, true)) {
+        $pdo->exec('ALTER TABLE files ADD COLUMN deleted_at TEXT NULL');
+    }
+    $pdo->exec("CREATE INDEX IF NOT EXISTS idx_files_deleted ON files(deleted_at)");
 }
