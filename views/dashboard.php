@@ -248,7 +248,68 @@ $v = $view ?? 'dashboard';
 
   <div x-show="noteModal" x-cloak @keydown.escape.window="noteModal=false" class="cv-modal-overlay" @click.self="closeNote()"><div class="cv-modal cv-modal-md flex flex-col max-h-[90vh]"><input x-model="noteForm.title" type="text" placeholder="Judul catatan" class="cv-input w-full font-semibold mb-3"><textarea x-model="noteForm.body" rows="10" placeholder="Tulis catatan . . ." class="cv-input w-full flex-1 resize-none text-sm leading-relaxed"></textarea><div class="flex justify-between items-center mt-4 gap-2"><button x-show="noteForm.id" @click="deleteNote({id: noteForm.id})" class="inline-flex items-center gap-1.5 px-3 h-9 rounded-lg text-sm text-red-600 dark:text-red-400 hover:bg-red-500/10 transition"><?= lucide('trash','w-4 h-4') ?> Hapus</button><div class="flex gap-2 ml-auto"><button @click="closeNote()" class="cv-btn-secondary">Batal</button><button @click="saveNote()" class="cv-btn-primary">Simpan</button></div></div></div></div>
 
-  <div x-show="shareModal" x-cloak class="cv-modal-overlay" @click.self="shareModal=false"><div class="cv-modal cv-modal-sm"><h3 class="font-semibold text-lg mb-4">Share link</h3><template x-if="!shareResult"><form @submit.prevent="createShare()" class="space-y-3"><div><label class="text-sm block mb-1.5 text-cv-muted">Password (opsional)</label><input x-model="shareForm.password" type="text" class="cv-input w-full"></div><div><label class="text-sm block mb-1.5 text-cv-muted">Kedaluwarsa</label><select x-model="shareForm.ttl_hours" class="cv-input w-full"><option value="">Tidak pernah</option><option value="1">1 jam</option><option value="24">1 hari</option><option value="168">1 minggu</option></select></div><button class="cv-btn-primary w-full h-11">Buat link</button></form></template><template x-if="shareResult"><div class="space-y-3"><div class="flex gap-2"><input :value="shareResult.url" readonly class="cv-input flex-1 font-mono text-xs"><button @click="copy(shareResult.url)" class="cv-btn-primary px-3" x-text="copied ? '✓' : 'Salin'"></button></div><div class="flex gap-2 justify-center pt-1"><a :href="`https://wa.me/?text=${encodeURIComponent(shareResult.url)}`" target="_blank" class="cv-btn-secondary text-xs h-9 px-3">WhatsApp</a><a :href="`https://t.me/share/url?url=${encodeURIComponent(shareResult.url)}`" target="_blank" class="cv-btn-secondary text-xs h-9 px-3">Telegram</a></div><div class="flex flex-col items-center pt-3 mt-1 border-t border-cv-border"><img :src="`${window.VAULT_BASE}/qr/${encodeURIComponent(shareResult.url)}`" alt="QR" class="w-36 h-36 rounded-xl bg-white p-1.5 border border-cv-border"><p class="text-xs text-cv-faint mt-2">Scan untuk buka di HP</p></div><button @click="shareModal=false" class="cv-btn-secondary w-full">Selesai</button></div></template></div></div>
+  <div x-show="shareModal" x-cloak class="cv-modal-overlay" @click.self="shareModal=false">
+    <div class="cv-modal cv-modal-sm">
+      <h3 class="font-semibold text-lg mb-4">Bagikan Berkas</h3>
+      <template x-if="!shareResult">
+        <div class="space-y-4">
+          <!-- Opsi 1: Direct Share (Link Langsung) -->
+          <div>
+            <label class="text-xs font-semibold text-cv-muted block mb-1.5 uppercase tracking-wider">1. Link Langsung (Tanpa Pengaman)</label>
+            <div class="flex gap-2">
+              <input :value="shareFile ? shareFile.preview : ''" readonly class="cv-input flex-1 font-mono text-xs bg-slate-50 dark:bg-zinc-900/50">
+              <button @click="copy(shareFile.preview)" class="cv-btn-primary px-3" title="Salin Link Langsung">
+                <?= lucide('copy', 'w-4 h-4') ?>
+              </button>
+            </div>
+            <p class="text-[11px] text-cv-muted mt-1">Gunakan link langsung untuk akses cepat tanpa password.</p>
+          </div>
+          
+          <div class="h-[1px] bg-slate-100 dark:bg-zinc-800 my-2"></div>
+          
+          <!-- Opsi 2 & 3: Link Aman (Password & Kadaluwarsa) -->
+          <form @submit.prevent="createShare()" class="space-y-3">
+            <div class="text-xs font-semibold text-cv-muted uppercase tracking-wider">Atur Link Publik Aman</div>
+            
+            <div>
+              <label class="text-xs block mb-1 text-cv-muted">2. Password (Opsional)</label>
+              <input x-model="shareForm.password" type="text" placeholder="Masukkan password..." class="cv-input w-full">
+            </div>
+            
+            <div>
+              <label class="text-xs block mb-1 text-cv-muted">3. Kedaluwarsa</label>
+              <select x-model="shareForm.ttl_hours" class="cv-input w-full">
+                <option value="">Tidak pernah</option>
+                <option value="1">1 jam</option>
+                <option value="24">1 hari</option>
+                <option value="168">1 minggu</option>
+              </select>
+            </div>
+            
+            <button class="cv-btn-primary w-full h-10 mt-2">Buat Link Aman</button>
+          </form>
+        </div>
+      </template>
+      <template x-if="shareResult">
+        <div class="space-y-3">
+          <div class="text-sm font-semibold text-cv-success flex items-center gap-1.5"><?= lucide('check-circle', 'w-4 h-4') ?> Link Aman Berhasil Dibuat</div>
+          <div class="flex gap-2">
+            <input :value="shareResult.url" readonly class="cv-input flex-1 font-mono text-xs">
+            <button @click="copy(shareResult.url)" class="cv-btn-primary px-3" x-text="copied ? '✓' : 'Salin'"></button>
+          </div>
+          <div class="flex gap-2 justify-center pt-1">
+            <a :href="`https://wa.me/?text=${encodeURIComponent(shareResult.url)}`" target="_blank" class="cv-btn-secondary text-xs h-9 px-3">WhatsApp</a>
+            <a :href="`https://t.me/share/url?url=${encodeURIComponent(shareResult.url)}`" target="_blank" class="cv-btn-secondary text-xs h-9 px-3">Telegram</a>
+          </div>
+          <div class="flex flex-col items-center pt-3 mt-1 border-t border-cv-border">
+            <img :src="`${window.VAULT_BASE}/qr/${encodeURIComponent(shareResult.url)}`" alt="QR" class="w-36 h-36 rounded-xl bg-white p-1.5 border border-cv-border">
+            <p class="text-xs text-cv-faint mt-2">Scan untuk buka di HP</p>
+          </div>
+          <button @click="shareModal=false" class="cv-btn-secondary w-full">Selesai</button>
+        </div>
+      </template>
+    </div>
+  </div>
 
   <!-- Floating Bulk Actions Bar -->
   <div x-show="selectedFiles.length > 0" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-white dark:bg-zinc-900 border border-cv-border px-5 py-3 rounded-2xl shadow-pop flex items-center gap-4 animate-slide-up" x-cloak>

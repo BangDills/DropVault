@@ -25,9 +25,6 @@
                 <button @click="toggleFavorite(f)" class="cv-dot-btn" :class="f.favorited && 'cv-star-active'" :title="f.favorited ? 'Unfavorite' : 'Favorite'">
                   <?= lucide('star', 'w-4 h-4') ?>
                 </button>
-                <button @click="copy(f.preview)" class="cv-dot-btn" title="Copy Direct Link">
-                  <?= lucide('copy', 'w-4 h-4') ?>
-                </button>
                 <button @click="shareFile(f)" class="cv-dot-btn" title="Share">
                   <?= lucide('link', 'w-4 h-4') ?>
                 </button>
