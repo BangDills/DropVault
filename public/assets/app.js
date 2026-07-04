@@ -39,7 +39,7 @@ function vault(initial) {
     modal: false,
     modalFile: null,
     shareModal: false,
-    shareFile: null,
+    activeShareFile: null,
     shareForm: { password: '', ttl_hours: '' },
     shareResult: null,
     passwordForm: { current: '', new: '', confirm: '' },
@@ -210,7 +210,7 @@ function vault(initial) {
     },
 
     shareFile(f) {
-      this.shareFile = f;
+      this.activeShareFile = f;
       this.shareResult = null;
       this.shareForm = { password: '', ttl_hours: '' };
       this.shareModal = true;
@@ -229,7 +229,7 @@ function vault(initial) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          file_id: this.shareFile.id,
+          file_id: this.activeShareFile.id,
           password: this.shareForm.password || undefined,
           ttl_hours: this.shareForm.ttl_hours ? parseInt(this.shareForm.ttl_hours) : undefined,
         }),

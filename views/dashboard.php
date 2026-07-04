@@ -257,8 +257,8 @@ $v = $view ?? 'dashboard';
           <div>
             <label class="text-xs font-semibold text-cv-muted block mb-1.5 uppercase tracking-wider">1. Link Langsung (Tanpa Pengaman)</label>
             <div class="flex gap-2">
-              <input :value="shareFile ? shareFile.preview : ''" readonly class="cv-input flex-1 font-mono text-xs bg-slate-50 dark:bg-zinc-900/50">
-              <button @click="copy(shareFile.preview)" class="cv-btn-primary px-3" title="Salin Link Langsung">
+              <input :value="activeShareFile ? activeShareFile.preview : ''" readonly class="cv-input flex-1 font-mono text-xs bg-slate-50 dark:bg-zinc-900/50">
+              <button @click="copy(activeShareFile.preview)" class="cv-btn-primary px-3" title="Salin Link Langsung">
                 <?= lucide('copy', 'w-4 h-4') ?>
               </button>
             </div>
