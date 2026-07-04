@@ -373,3 +373,22 @@ function favorite_ids(): array
         ->query('SELECT file_id FROM favorites')
         ->fetchAll(PDO::FETCH_COLUMN);
 }
+
+function set_favorite_status(int $fileId, bool $status): void
+{
+    $pdo = db(config()['db_path']);
+    if ($status) {
+        $stmt = $pdo->prepare('SELECT id FROM favorites WHERE file_id = ?');
+        $stmt->execute([$fileId]);
+        if (!$stmt->fetch()) {
+            $pdo->prepare('INSERT INTO favorites (file_id) VALUES (?)')->execute([$fileId]);
+        }
+    } else {
+        $pdo->prepare('DELETE FROM favorites WHERE file_id = ?')->execute([$fileId]);
+    }
+}
+
+function list_all_folders(): array
+{
+    return db(config()['db_path'])->query('SELECT id, name FROM folders ORDER BY name ASC')->fetchAll();
+}

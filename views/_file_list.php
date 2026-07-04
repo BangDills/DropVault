@@ -4,11 +4,16 @@
           <h2 class="cv-section-title"><?= e($fileListTitle ?? 'Recent Files') ?></h2>
         </div>
         <div class="cv-card" x-show="filteredFiles.length || search">
+          <div x-show="filteredFiles.length > 0" class="flex items-center gap-3 px-4 py-2.5 border-b border-cv-border bg-slate-50/50 dark:bg-zinc-900/10">
+            <input type="checkbox" :checked="isAllSelected()" @click="toggleSelectAll()" class="cv-checkbox">
+            <span class="text-xs font-semibold text-cv-muted" x-text="isAllSelected() ? 'Batal Pilih Semua' : 'Pilih Semua'"></span>
+          </div>
           <div x-show="!filteredFiles.length && search" class="px-4 py-8 text-center text-cv-muted text-sm">
             Tidak ada hasil untuk "<span x-text="search" class="font-medium"></span>"
           </div>
           <template x-for="f in filteredFiles" :key="f.id">
             <div class="cv-file-row" @click="preview(f)">
+              <input type="checkbox" :checked="selectedFiles.includes(f.id)" @click.stop="toggleSelectFile(f.id)" class="cv-checkbox mr-1">
               <div class="cv-file-icon" :class="'cv-ficon-' + f.kind" x-html="fileIconSvg(f.icon, 'w-5 h-5')"></div>
               <div class="cv-file-info">
                 <span class="cv-file-name" x-text="f.name"></span>

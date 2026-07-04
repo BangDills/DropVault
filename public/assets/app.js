@@ -43,6 +43,10 @@ function vault(initial) {
     shareForm: { password: '', ttl_hours: '' },
     shareResult: null,
     passwordForm: { current: '', new: '', confirm: '' },
+    selectedFiles: [],
+    bulkMoveModal: false,
+    bulkMoveFolderId: '',
+    allFolders: [],
     copied: false,
     notes: initial.notes || [],
     noteModal: false,
@@ -417,6 +421,97 @@ function vault(initial) {
       .catch(err => {
         this.toast(err.message, true);
       });
+    },
+
+    // --- Bulk selection & actions ---
+    toggleSelectFile(id) {
+      if (this.selectedFiles.includes(id)) {
+        this.selectedFiles = this.selectedFiles.filter(x => x !== id);
+      } else {
+        this.selectedFiles.push(id);
+      }
+    },
+    deselectAll() {
+      this.selectedFiles = [];
+    },
+    isAllSelected() {
+      if (!this.filteredFiles.length) return false;
+      const visibleIds = this.filteredFiles.map(f => f.id);
+      return visibleIds.every(id => this.selectedFiles.includes(id));
+    },
+    toggleSelectAll() {
+      const visibleIds = this.filteredFiles.map(f => f.id);
+      if (this.isAllSelected()) {
+        this.selectedFiles = this.selectedFiles.filter(id => !visibleIds.includes(id));
+      } else {
+        visibleIds.forEach(id => {
+          if (!this.selectedFiles.includes(id)) {
+            this.selectedFiles.push(id);
+          }
+        });
+      }
+    },
+    bulkAction(action, extra = {}) {
+      if (!this.selectedFiles.length) return;
+      fetch(window.VAULT_BASE + '/api/bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, ids: this.selectedFiles, ...extra }),
+      })
+      .then(r => r.json())
+      .then(res => {
+        if (res.error) {
+          this.toast(res.error, true);
+          return;
+        }
+        
+        if (action === 'trash') {
+          this.files = this.files.filter(f => !this.selectedFiles.includes(f.id));
+          this.stats.trash += this.selectedFiles.length;
+          this.toast(this.selectedFiles.length + ' file dipindahkan ke Trash');
+        } else if (action === 'restore') {
+          this.files = this.files.filter(f => !this.selectedFiles.includes(f.id));
+          this.stats.trash = Math.max(0, this.stats.trash - this.selectedFiles.length);
+          this.toast(this.selectedFiles.length + ' file dikembalikan');
+        } else if (action === 'delete') {
+          this.files = this.files.filter(f => !this.selectedFiles.includes(f.id));
+          this.toast(this.selectedFiles.length + ' file dihapus permanen');
+        } else if (action === 'favorite') {
+          this.files.forEach(f => {
+            if (this.selectedFiles.includes(f.id)) f.favorited = true;
+          });
+          this.toast(this.selectedFiles.length + ' file ditambahkan ke favorit');
+        } else if (action === 'unfavorite') {
+          this.files.forEach(f => {
+            if (this.selectedFiles.includes(f.id)) f.favorited = false;
+          });
+          this.toast(this.selectedFiles.length + ' file dihapus dari favorit');
+        } else if (action === 'move') {
+          const folderName = extra.folder ? (this.allFolders.find(f => f.id === parseInt(extra.folder))?.name || 'Folder') : 'Root';
+          this.files = this.files.filter(f => !this.selectedFiles.includes(f.id));
+          this.toast(this.selectedFiles.length + ' file dipindahkan ke ' + folderName);
+          this.bulkMoveModal = false;
+        }
+        
+        this.deselectAll();
+      })
+      .catch(err => {
+        this.toast('Gagal melakukan aksi bulk: ' + err.message, true);
+      });
+    },
+    openBulkMoveModal() {
+      fetch(window.VAULT_BASE + '/api/folders')
+        .then(r => r.json())
+        .then(res => {
+          this.allFolders = res.folders || [];
+          this.bulkMoveFolderId = '';
+          this.bulkMoveModal = true;
+        });
+    },
+    bulkToggleFavorite() {
+      const selectedObj = this.files.filter(f => this.selectedFiles.includes(f.id));
+      const hasUnfavorited = selectedObj.some(f => !f.favorited);
+      this.bulkAction(hasUnfavorited ? 'favorite' : 'unfavorite');
     },
   };
 }

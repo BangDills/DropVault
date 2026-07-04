@@ -639,3 +639,52 @@ select.cv-input { cursor: pointer; }
 .dark .cv-btn-secondary:hover { background: #1e2025; }
 
 .dark .card-hover:hover { box-shadow: 0 6px 20px -6px rgba(0,0,0,.5); }
+
+/* --- Bulk Selection Custom CSS --- */
+.cv-checkbox {
+  appearance: none;
+  width: 18px; height: 18px;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  outline: none;
+}
+.cv-checkbox:hover {
+  border-color: #94a3b8;
+}
+.cv-checkbox:checked {
+  background: #4f7cff;
+  border-color: #4f7cff;
+}
+.cv-checkbox:checked::after {
+  content: '';
+  width: 5px; height: 9px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg) translate(-0.5px, -1px);
+}
+.dark .cv-checkbox {
+  background: #111214;
+  border-color: #3f3f46;
+}
+.dark .cv-checkbox:hover {
+  border-color: #52525b;
+}
+.dark .cv-checkbox:checked {
+  background: #4f7cff;
+  border-color: #4f7cff;
+}
+
+@keyframes cvSlideUp {
+  from { transform: translate(-50%, 24px); opacity: 0; }
+  to { transform: translate(-50%, 0); opacity: 1; }
+}
+.animate-slide-up {
+  animation: cvSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}

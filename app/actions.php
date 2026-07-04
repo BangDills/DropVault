@@ -258,10 +258,12 @@ function api(string $path): void
         match (true) {
             $path === '/api/upload' && $method === 'POST' => api_upload(),
             $path === '/api/folder' && $method === 'POST' => api_folder(),
+            $path === '/api/folders' && $method === 'GET' => api_list_all_folders(),
             $path === '/api/share' && $method === 'POST' => api_share(),
             $path === '/api/note' && $method === 'POST' => api_note_create(),
             $path === '/api/trash' && $method === 'DELETE' => api_empty_trash(),
             $path === '/api/password' && $method === 'POST' => api_change_password(),
+            $path === '/api/bulk' && $method === 'POST' => api_bulk(),
             str_starts_with($path, '/api/note/') && $method === 'PUT' => api_note_update(),
             str_starts_with($path, '/api/note/') && $method === 'DELETE' => api_note_delete(),
             str_starts_with($path, '/api/file/') && $method === 'DELETE' => api_delete_file(),
@@ -519,6 +521,64 @@ function api_change_password(): void
     }
 
     json_out(['ok' => true]);
+}
+
+function api_bulk(): void
+{
+    $body = json_in();
+    $action = (string)($body['action'] ?? '');
+    $ids = (array)($body['ids'] ?? []);
+
+    if (empty($ids)) {
+        json_out(['error' => 'Tidak ada file yang dipilih'], 400);
+        return;
+    }
+
+    $ids = array_map('intval', $ids);
+
+    switch ($action) {
+        case 'trash':
+            foreach ($ids as $id) {
+                delete_file($id);
+            }
+            break;
+        case 'restore':
+            foreach ($ids as $id) {
+                restore_file($id);
+            }
+            break;
+        case 'delete':
+            foreach ($ids as $id) {
+                permanent_delete_file($id);
+            }
+            break;
+        case 'favorite':
+            foreach ($ids as $id) {
+                set_favorite_status($id, true);
+            }
+            break;
+        case 'unfavorite':
+            foreach ($ids as $id) {
+                set_favorite_status($id, false);
+            }
+            break;
+        case 'move':
+            $folderId = isset($body['folder']) && $body['folder'] !== '' ? (int)$body['folder'] : null;
+            foreach ($ids as $id) {
+                move_file($id, $folderId);
+            }
+            break;
+        default:
+            json_out(['error' => 'Aksi bulk tidak valid'], 400);
+            return;
+    }
+
+    json_out(['ok' => true]);
+}
+
+function api_list_all_folders(): void
+{
+    json_out(['folders' => list_all_folders()]);
 }
 
 // --- View model (what the UI needs) ----------------------------------

@@ -161,8 +161,13 @@ $v = $view ?? 'dashboard';
   <button x-show="filteredFiles.length" @click="emptyTrash()" class="cv-btn-secondary text-red-500" style="border-color:#fca5a5"><?= lucide('trash', 'w-4 h-4') ?> Empty Trash</button>
 </div>
 <div class="cv-card" x-show="filteredFiles.length">
+  <div class="flex items-center gap-3 px-4 py-2.5 border-b border-cv-border bg-slate-50/50 dark:bg-zinc-900/10">
+    <input type="checkbox" :checked="isAllSelected()" @click="toggleSelectAll()" class="cv-checkbox">
+    <span class="text-xs font-semibold text-cv-muted" x-text="isAllSelected() ? 'Batal Pilih Semua' : 'Pilih Semua'"></span>
+  </div>
   <template x-for="f in filteredFiles" :key="f.id">
     <div class="cv-file-row">
+      <input type="checkbox" :checked="selectedFiles.includes(f.id)" @click.stop="toggleSelectFile(f.id)" class="cv-checkbox mr-1">
       <div class="cv-file-icon" :class="'cv-ficon-' + f.kind" x-html="fileIconSvg(f.icon, 'w-5 h-5')"></div>
       <div class="cv-file-info"><span class="cv-file-name" x-text="f.name"></span><span class="cv-file-cat" x-text="'Deleted ' + (f.deleted ? f.deleted.slice(0,16).replace('T',' ') : '')"></span></div>
       <span class="cv-file-size" x-text="f.size_h"></span>
@@ -219,6 +224,51 @@ $v = $view ?? 'dashboard';
   <div x-show="noteModal" x-cloak @keydown.escape.window="noteModal=false" class="cv-modal-overlay" @click.self="closeNote()"><div class="cv-modal cv-modal-md flex flex-col max-h-[90vh]"><input x-model="noteForm.title" type="text" placeholder="Judul catatan" class="cv-input w-full font-semibold mb-3"><textarea x-model="noteForm.body" rows="10" placeholder="Tulis catatan . . ." class="cv-input w-full flex-1 resize-none text-sm leading-relaxed"></textarea><div class="flex justify-between items-center mt-4 gap-2"><button x-show="noteForm.id" @click="deleteNote({id: noteForm.id})" class="inline-flex items-center gap-1.5 px-3 h-9 rounded-lg text-sm text-red-600 dark:text-red-400 hover:bg-red-500/10 transition"><?= lucide('trash','w-4 h-4') ?> Hapus</button><div class="flex gap-2 ml-auto"><button @click="closeNote()" class="cv-btn-secondary">Batal</button><button @click="saveNote()" class="cv-btn-primary">Simpan</button></div></div></div></div>
 
   <div x-show="shareModal" x-cloak class="cv-modal-overlay" @click.self="shareModal=false"><div class="cv-modal cv-modal-sm"><h3 class="font-semibold text-lg mb-4">Share link</h3><template x-if="!shareResult"><form @submit.prevent="createShare()" class="space-y-3"><div><label class="text-sm block mb-1.5 text-cv-muted">Password (opsional)</label><input x-model="shareForm.password" type="text" class="cv-input w-full"></div><div><label class="text-sm block mb-1.5 text-cv-muted">Kedaluwarsa</label><select x-model="shareForm.ttl_hours" class="cv-input w-full"><option value="">Tidak pernah</option><option value="1">1 jam</option><option value="24">1 hari</option><option value="168">1 minggu</option></select></div><button class="cv-btn-primary w-full h-11">Buat link</button></form></template><template x-if="shareResult"><div class="space-y-3"><div class="flex gap-2"><input :value="shareResult.url" readonly class="cv-input flex-1 font-mono text-xs"><button @click="copy(shareResult.url)" class="cv-btn-primary px-3" x-text="copied ? '✓' : 'Salin'"></button></div><div class="flex gap-2 justify-center pt-1"><a :href="`https://wa.me/?text=${encodeURIComponent(shareResult.url)}`" target="_blank" class="cv-btn-secondary text-xs h-9 px-3">WhatsApp</a><a :href="`https://t.me/share/url?url=${encodeURIComponent(shareResult.url)}`" target="_blank" class="cv-btn-secondary text-xs h-9 px-3">Telegram</a></div><div class="flex flex-col items-center pt-3 mt-1 border-t border-cv-border"><img :src="`${window.VAULT_BASE}/qr/${encodeURIComponent(shareResult.url)}`" alt="QR" class="w-36 h-36 rounded-xl bg-white p-1.5 border border-cv-border"><p class="text-xs text-cv-faint mt-2">Scan untuk buka di HP</p></div><button @click="shareModal=false" class="cv-btn-secondary w-full">Selesai</button></div></template></div></div>
+
+  <!-- Floating Bulk Actions Bar -->
+  <div x-show="selectedFiles.length > 0" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-white dark:bg-zinc-900 border border-cv-border px-5 py-3 rounded-2xl shadow-pop flex items-center gap-4 animate-slide-up" x-cloak>
+    <span class="text-xs font-semibold text-cv-muted"><span x-text="selectedFiles.length"></span> file terpilih</span>
+    <div class="h-4 w-[1px] bg-cv-border"></div>
+    <div class="flex gap-2">
+      <template x-if="currentView !== 'trash'">
+        <div class="flex gap-2">
+          <button @click="bulkToggleFavorite()" class="cv-btn-secondary h-9 px-3 text-xs gap-1.5"><?= lucide('star', 'w-3.5 h-3.5') ?> Star/Unstar</button>
+          <button @click="openBulkMoveModal()" class="cv-btn-secondary h-9 px-3 text-xs gap-1.5"><?= lucide('folder', 'w-3.5 h-3.5') ?> Pindahkan</button>
+          <button @click="bulkAction('trash')" class="cv-btn-primary bg-red-600 hover:bg-red-700 border-none h-9 px-3 text-xs gap-1.5"><?= lucide('trash', 'w-3.5 h-3.5') ?> Hapus</button>
+        </div>
+      </template>
+      <template x-if="currentView === 'trash'">
+        <div class="flex gap-2">
+          <button @click="bulkAction('restore')" class="cv-btn-primary h-9 px-3 text-xs gap-1.5"><?= lucide('refresh-cw', 'w-3.5 h-3.5') ?> Restore</button>
+          <button @click="bulkAction('delete')" class="cv-btn-primary bg-red-600 hover:bg-red-700 border-none h-9 px-3 text-xs gap-1.5"><?= lucide('trash', 'w-3.5 h-3.5') ?> Hapus Permanen</button>
+        </div>
+      </template>
+    </div>
+    <div class="h-4 w-[1px] bg-cv-border"></div>
+    <button @click="deselectAll()" class="cv-btn-secondary h-9 px-3 text-xs">Batal</button>
+  </div>
+
+  <!-- Bulk Move Modal -->
+  <div x-show="bulkMoveModal" x-cloak @keydown.escape.window="bulkMoveModal=false" class="cv-modal-overlay" @click.self="bulkMoveModal=false">
+    <div class="cv-modal cv-modal-sm">
+      <h3 class="font-semibold text-lg mb-4">Pindahkan File (<span x-text="selectedFiles.length"></span>)</h3>
+      <form @submit.prevent="bulkAction('move', { folder: bulkMoveFolderId })" class="space-y-4">
+        <div>
+          <label class="text-sm block mb-1.5 text-cv-muted">Pilih Folder Tujuan</label>
+          <select x-model="bulkMoveFolderId" class="cv-input w-full">
+            <option value="">Root (Beranda)</option>
+            <template x-for="f in allFolders" :key="f.id">
+              <option :value="f.id" x-text="f.name"></option>
+            </template>
+          </select>
+        </div>
+        <div class="flex gap-2 justify-end pt-2">
+          <button type="button" @click="bulkMoveModal=false" class="cv-btn-secondary">Batal</button>
+          <button type="submit" class="cv-btn-primary">Pindahkan</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <div class="fixed bottom-4 left-1/2 -translate-x-1/2 z-[60] flex flex-col items-center gap-2 pointer-events-none"><template x-for="t in toasts" :key="t.id"><div class="cv-card shadow-pop px-4 py-2.5 text-sm font-medium flex items-center gap-2" :class="t.isError ? 'text-red-600 dark:text-red-400' : 'text-cv-text'"><span x-show="!t.isError" class="text-cv-success">●</span><span x-show="t.isError" class="text-red-500">●</span><span x-text="t.msg"></span></div></template></div>
 
