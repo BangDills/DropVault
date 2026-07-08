@@ -18,6 +18,7 @@ const LUCIDE = {
   music: '<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>',
   archive: '<rect width="20" height="5" x="2" y="3" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/>',
   note: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13h8M8 17h5"/>',
+  'square-pen': '<path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z"/>',
 };
 function fileIconSvg(name, cls = 'w-10 h-10') {
   const body = LUCIDE[name] || LUCIDE.file;
@@ -50,8 +51,12 @@ function vault(initial) {
     activeTypeFilter: '',
     copied: false,
     notes: initial.notes || [],
-    noteModal: false,
-    noteForm: { id: null, title: '', body: '' },
+    // iCloud-style two-pane notes editor state.
+    noteSearch: '',
+    activeNoteId: null,
+    activeNote: null,
+    noteSaveStatus: '',
+    _noteSaveTimer: null,
     search: '',
     sortKey: 'date',
     versionModal: false,
@@ -86,7 +91,7 @@ function vault(initial) {
         const tag = (e.target?.tagName || '').toLowerCase();
         if (tag === 'input' || tag === 'textarea' || tag === 'select' || e.metaKey || e.ctrlKey) return;
         if (e.key === '/') { e.preventDefault(); this.$refs.searchInput?.focus(); }
-        else if (e.key.toLowerCase() === 'n') { e.preventDefault(); this.openNote(null); }
+        else if (e.key.toLowerCase() === 'n') { e.preventDefault(); this.newNoteInline(); }
         else if (e.key.toLowerCase() === 'u') { e.preventDefault(); this.$refs.fileInput?.click(); }
       });
     },
@@ -115,12 +120,11 @@ function vault(initial) {
         return String(b.created).localeCompare(String(a.created)); // date desc
       });
     },
-    get filteredNotes() {
-      if (this.activeTypeFilter && this.activeTypeFilter !== 'text') {
-        return [];
-      }
-      const q = this.search.trim().toLowerCase();
-      return this.notes.filter(n => !q || n.title.toLowerCase().includes(q) || (n.body || '').toLowerCase().includes(q));
+    get noteListFiltered() {
+      const q = this.noteSearch.trim().toLowerCase();
+      return this.notes.filter(n => !q
+        || (n.title || '').toLowerCase().includes(q)
+        || (n.body || '').toLowerCase().includes(q));
     },
 
     toggleTheme() {
@@ -306,43 +310,87 @@ function vault(initial) {
 
     // --- Notes ---
 
-    openNote(n) {
-      this.noteForm = n
-        ? { id: n.id, title: n.title === 'Catatan tanpa judul' ? '' : n.title, body: n.body }
-        : { id: null, title: '', body: '' };
-      this.noteModal = true;
+    // --- Notes (iCloud two-pane) ---
+    // Load a note into the editor pane.
+    selectNote(id) {
+      const n = this.notes.find(x => x.id === id);
+      if (!n) return;
+      // Drop the synthetic "Catatan tanpa judul" display label so editing is clean.
+      this.activeNoteId = id;
+      this.activeNote = {
+        id: n.id,
+        title: n.title === 'Catatan tanpa judul' ? '' : n.title,
+        body: n.body,
+      };
+      this.noteSaveStatus = '';
     },
 
-    closeNote() {
-      this.noteModal = false;
-    },
-
-    saveNote() {
-      const base = window.VAULT_BASE + '/api/note' + (this.folder != null ? '?folder=' + this.folder : '');
-      const method = this.noteForm.id ? 'PUT' : 'POST';
-      const url = this.noteForm.id ? window.VAULT_BASE + '/api/note/' + this.noteForm.id : base;
-      this.apiFetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: this.noteForm.title, body: this.noteForm.body, folder: this.folder }),
-      }).then(r => r.json()).then(n => {
-        if (n.error) { alert(n.error); return; }
-        const idx = this.notes.findIndex(x => x.id === n.id);
-        if (idx >= 0) this.notes.splice(idx, 1, n);
-        else this.notes.unshift(n);
-        this.closeNote();
+    // Create a new note and focus the editor. Saves on first input.
+    newNoteInline() {
+      this.activeNoteId = null;
+      this.activeNote = { id: null, title: '', body: '' };
+      this.noteSaveStatus = '';
+      this.$nextTick(() => {
+        document.querySelector('.cv-notes-title-input')?.focus();
       });
     },
 
-    deleteNote(n) {
-      if (!n || !n.id) { this.closeNote(); return; }
+    // Debounced autosave — writes after typing pauses for 600ms.
+    scheduleNoteSave() {
+      if (!this.activeNote) return;
+      clearTimeout(this._noteSaveTimer);
+      this.noteSaveStatus = 'Menyimpan…';
+      this._noteSaveTimer = setTimeout(() => this.saveActiveNote(), 600);
+    },
+
+    saveActiveNote() {
+      if (!this.activeNote) return;
+      const n = this.activeNote;
+      const base = window.VAULT_BASE + '/api/note' + (this.folder != null ? '?folder=' + this.folder : '');
+      const method = n.id ? 'PUT' : 'POST';
+      const url = n.id ? window.VAULT_BASE + '/api/note/' + n.id : base;
+      this.apiFetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: n.title, body: n.body, folder: this.folder }),
+      }).then(r => r.json()).then(saved => {
+        if (saved.error) { this.noteSaveStatus = 'Gagal menyimpan'; return; }
+        const idx = this.notes.findIndex(x => x.id === saved.id);
+        if (idx >= 0) this.notes.splice(idx, 1, saved);
+        else this.notes.unshift(saved);
+        this.activeNoteId = saved.id;
+        this.activeNote = {
+          id: saved.id,
+          title: saved.title === 'Catatan tanpa judul' ? '' : saved.title,
+          body: saved.body,
+        };
+        this.noteSaveStatus = 'Tersimpan';
+        setTimeout(() => { if (this.noteSaveStatus === 'Tersimpan') this.noteSaveStatus = ''; }, 1500);
+      });
+    },
+
+    deleteActiveNote() {
+      if (!this.activeNote || !this.activeNote.id) {
+        // Unsaved empty note — just clear the editor.
+        this.activeNote = null;
+        this.activeNoteId = null;
+        return;
+      }
       if (!confirm('Hapus catatan ini?')) return;
-      this.apiFetch(window.VAULT_BASE + '/api/note/' + n.id, { method: 'DELETE' })
+      this.apiFetch(window.VAULT_BASE + '/api/note/' + this.activeNote.id, { method: 'DELETE' })
         .then(() => {
-          this.notes = this.notes.filter(x => x.id !== n.id);
-          if (this.noteForm.id === n.id) this.closeNote();
+          this.notes = this.notes.filter(x => x.id !== this.activeNote.id);
+          this.activeNote = null;
+          this.activeNoteId = null;
           this.toast('Catatan dihapus');
         });
+    },
+
+    // First line of body, stripped — used as a list snippet.
+    noteSnippet(n) {
+      const body = (n.body || '').trim();
+      const firstLine = body.split('\n').find(l => l.trim() !== '') || '';
+      return firstLine.slice(0, 60) || (n.updated ? n.updated.slice(0, 10) : '');
     },
 
     async copy(text) {

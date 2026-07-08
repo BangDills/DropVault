@@ -105,13 +105,12 @@ $v = $view ?? 'dashboard';
         <button @click="createFolderPrompt()" class="cv-action-card"><div class="cv-action-icon"><?= lucide('folder', 'w-6 h-6') ?></div><span class="cv-action-label">New Folder</span><span class="cv-action-sub">Create folder</span></button>
         <button @click="$refs.fileInput.click()" class="cv-action-card"><div class="cv-action-icon cv-action-icon--accent"><?= lucide('upload', 'w-6 h-6') ?></div><span class="cv-action-label">Upload Files</span><span class="cv-action-sub">From device</span></button>
         <a href="<?= e(url('/?view=files')) ?>" class="cv-action-card"><div class="cv-action-icon"><?= lucide('link', 'w-6 h-6') ?></div><span class="cv-action-label">Share File</span><span class="cv-action-sub">Go to My Files</span></a>
-        <button @click="openNote(null)" class="cv-action-card"><div class="cv-action-icon"><?= lucide('file-plus', 'w-6 h-6') ?></div><span class="cv-action-label">Create Note</span><span class="cv-action-sub">Quick note</span></button>
+        <a href="<?= e(url('/?view=notes')) ?>" class="cv-action-card"><div class="cv-action-icon"><?= lucide('file-plus', 'w-6 h-6') ?></div><span class="cv-action-label">Create Note</span><span class="cv-action-sub">Quick note</span></a>
       </div>
       <input type="file" x-ref="fileInput" multiple class="hidden" @change="uploadFiles($event.target.files)">
     </section>
     <?php include __DIR__ . '/_upload_progress.php'; ?>
     <?php include __DIR__ . '/_file_list.php'; ?>
-    <?php include __DIR__ . '/_notes_section.php'; ?>
     <section class="cv-section"><h2 class="cv-section-title">Activity Feed</h2><div class="cv-card">
       <div class="cv-activity-item"><div class="cv-activity-icon bg-cv-sbg text-cv-accent" style="background:#e8f0fe"><?= lucide('upload', 'w-4 h-4') ?></div><div class="cv-activity-text"><p><span x-text="stats.count"></span> files stored</p><span>Total <span x-text="humanSize(stats.size)"></span></span></div><span class="cv-activity-time">Now</span></div>
       <div class="cv-activity-item"><div class="cv-activity-icon" style="background:#e8f8ee;color:#34c759"><?= lucide('folder', 'w-4 h-4') ?></div><div class="cv-activity-text"><p><span x-text="folders.length"></span> folders</p><span>Current directory</span></div><span class="cv-activity-time">Current</span></div>
@@ -153,7 +152,6 @@ $v = $view ?? 'dashboard';
   </div>
 </div>
 <?php $fileListTitle = 'Files'; include __DIR__ . '/_file_list.php'; ?>
-<?php include __DIR__ . '/_notes_section.php'; ?>
 
 <?php elseif ($v === 'recent'): ?>
 <!-- ══ RECENT ══ -->
@@ -182,28 +180,46 @@ $v = $view ?? 'dashboard';
 <?php $fileListTitle = 'Favorites'; include __DIR__ . '/_file_list.php'; ?>
 
 <?php elseif ($v === 'notes'): ?>
-<!-- ══ NOTES ══ -->
-<div class="cv-section-header mb-4"><h2 class="cv-section-title" style="margin-bottom:0">Notes</h2>
-  <button @click="openNote(null)" class="cv-btn-primary"><?= lucide('plus', 'w-4 h-4') ?> New Note</button>
-</div>
-<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3" x-show="filteredNotes.length">
-  <template x-for="n in filteredNotes" :key="'n'+n.id">
-    <div class="cv-card card-hover group relative p-4 cursor-pointer" @click="openNote(n)">
-      <div class="flex items-start gap-2.5 mb-2">
-        <span class="text-cv-accent mt-0.5 shrink-0"><?= lucide('note', 'w-[18px] h-[18px]') ?></span>
-        <p class="text-sm font-semibold truncate flex-1" x-text="n.title"></p>
-      </div>
-      <p class="text-xs text-cv-muted line-clamp-4 whitespace-pre-wrap break-words [&_a]:text-cv-accent [&_a]:underline" x-html="n.html"></p>
-      <div class="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition">
-        <button @click.stop="deleteNote(n)" class="p-1.5 rounded-lg text-cv-muted hover:bg-[#ff3b30]/10 hover:text-[#ff3b30] transition" title="Hapus">
-          <?= lucide('trash', 'w-4 h-4') ?>
-        </button>
-      </div>
+<!-- ══ NOTES (iCloud-style two-pane) ══ -->
+<div class="cv-notes-app" x-data="{ }">
+  <!-- Pane 1: note list -->
+  <aside class="cv-notes-list">
+    <div class="cv-notes-list-head">
+      <h2 class="cv-section-title" style="margin:0">Notes</h2>
+      <button @click="newNoteInline()" class="cv-notes-new" title="Catatan baru"><?= lucide('square-pen', 'w-[18px] h-[18px]') ?></button>
     </div>
-  </template>
-</div>
-<div x-show="!filteredNotes.length" class="cv-card px-4 py-10 text-center text-cv-muted text-sm">
-  Belum ada catatan. Buat pertamamu!
+    <div class="cv-notes-search">
+      <?= lucide('search', 'w-4 h-4 cv-notes-search-icon') ?>
+      <input x-model="noteSearch" type="text" placeholder="Cari" class="cv-notes-search-input">
+    </div>
+    <div class="cv-notes-items" x-show="noteListFiltered.length">
+      <template x-for="n in noteListFiltered" :key="n.id">
+        <div class="cv-note-item" :class="activeNoteId === n.id && 'is-active'" @click="selectNote(n.id)">
+          <div class="cv-note-item-title" x-text="n.title || 'Catatan baru'"></div>
+          <div class="cv-note-item-snippet" x-text="noteSnippet(n)"></div>
+        </div>
+      </template>
+    </div>
+    <div x-show="!noteListFiltered.length" class="cv-notes-empty">
+      <p>Belum ada catatan</p>
+    </div>
+  </aside>
+
+  <!-- Pane 2: editor -->
+  <section class="cv-notes-editor" x-show="activeNote" x-cloak>
+    <div class="cv-notes-editor-head">
+      <input x-model="activeNote.title" @input="scheduleNoteSave()" type="text" placeholder="Judul" class="cv-notes-title-input">
+      <button @click="deleteActiveNote()" class="cv-notes-del" title="Hapus catatan"><?= lucide('trash', 'w-[18px] h-[18px]') ?></button>
+    </div>
+    <textarea x-model="activeNote.body" @input="scheduleNoteSave()" placeholder="Mulai menulis…" class="cv-notes-body-input"></textarea>
+    <div class="cv-notes-save-status" x-text="noteSaveStatus" x-show="noteSaveStatus"></div>
+  </section>
+  <section class="cv-notes-editor cv-notes-placeholder" x-show="!activeNote">
+    <div class="cv-notes-placeholder-inner">
+      <?= lucide('note', 'w-12 h-12') ?>
+      <p>Pilih atau buat catatan</p>
+    </div>
+  </section>
 </div>
 
 <?php elseif ($v === 'trash'): ?>
@@ -271,8 +287,6 @@ $v = $view ?? 'dashboard';
   <div x-show="versionModal" x-cloak @keydown.escape.window="versionModal=false" class="cv-modal-overlay" @click.self="versionModal=false"><div class="cv-modal cv-modal-sm"><h3 class="font-semibold text-lg mb-1">Riwayat versi</h3><p class="text-xs text-cv-muted mb-4 truncate" x-text="versionFile?.name"></p><template x-if="!versionList.length"><p class="text-sm text-cv-muted py-4 text-center">Tidak ada versi lama.</p></template><div class="space-y-2 max-h-72 overflow-auto"><template x-for="v in versionList" :key="v.id"><div class="flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl bg-cv-bg border border-cv-border"><div class="min-w-0"><p class="text-xs font-medium" x-text="v.size_h"></p><p class="text-[11px] text-cv-faint" x-text="v.created"></p></div><div class="flex gap-1.5 shrink-0"><button @click="restoreVersion(v.id)" class="cv-btn-primary text-xs h-7 px-2.5">Restore</button><button @click="deleteVersion(v.id)" class="cv-btn-secondary text-xs h-7 px-2.5">Hapus</button></div></div></template></div><button @click="versionModal=false" class="cv-btn-secondary w-full mt-4">Tutup</button></div></div>
 
   <div x-show="modal" x-cloak @keydown.escape.window="modal=false" class="cv-modal-overlay" @click.self="modal=false"><div class="relative max-w-5xl max-h-[90vh] w-full"><template x-if="modalFile?.kind==='image'"><img :src="modalFile.preview" class="max-h-[90vh] mx-auto rounded-bento shadow-pop"></template><template x-if="modalFile?.kind==='video'"><video :src="modalFile.preview" controls autoplay class="max-h-[90vh] mx-auto rounded-bento shadow-pop"></video></template><template x-if="modalFile?.kind==='audio'"><div class="cv-card p-8 text-center"><div class="inline-flex w-12 h-12 rounded-xl bg-cv-accent/10 text-cv-accent items-center justify-center mb-3"><?= lucide('music','w-6 h-6') ?></div><p class="font-medium mb-4" x-text="modalFile.name"></p><audio :src="modalFile.preview" controls autoplay class="mx-auto"></audio></div></template><template x-if="modalFile?.kind==='pdf'"><iframe :src="modalFile.preview" class="w-full h-[85vh] rounded-bento bg-white"></iframe></template><template x-if="modalFile?.kind==='text'"><iframe :src="modalFile.preview" class="w-full h-[85vh] rounded-bento bg-white"></iframe></template><template x-if="modalFile && !['image','video','audio','pdf','text'].includes(modalFile.kind)"><div class="cv-card p-10 text-center"><div class="inline-flex w-14 h-14 rounded-xl bg-cv-bg border border-cv-border text-cv-faint items-center justify-center mb-4" x-html="fileIconSvg(modalFile.icon)"></div><p class="font-medium mb-4" x-text="modalFile.name"></p><a :href="modalFile.preview" download class="cv-btn-primary inline-flex items-center gap-2"><?= lucide('download','w-4 h-4') ?> Download</a></div></template></div></div>
-
-  <div x-show="noteModal" x-cloak @keydown.escape.window="noteModal=false" class="cv-modal-overlay" @click.self="closeNote()"><div class="cv-modal cv-modal-md flex flex-col max-h-[90vh]"><input x-model="noteForm.title" type="text" placeholder="Judul catatan" class="cv-input w-full font-semibold mb-3"><textarea x-model="noteForm.body" rows="10" placeholder="Tulis catatan . . ." class="cv-input w-full flex-1 resize-none text-sm leading-relaxed"></textarea><div class="flex justify-between items-center mt-4 gap-2"><button x-show="noteForm.id" @click="deleteNote({id: noteForm.id})" class="inline-flex items-center gap-1.5 px-3 h-9 rounded-lg text-sm text-[#ff3b30] dark:text-[#ff453a] hover:bg-[#ff3b30]/10 transition"><?= lucide('trash','w-4 h-4') ?> Hapus</button><div class="flex gap-2 ml-auto"><button @click="closeNote()" class="cv-btn-secondary">Batal</button><button @click="saveNote()" class="cv-btn-primary">Simpan</button></div></div></div></div>
 
   <div x-show="shareModal" x-cloak class="cv-modal-overlay" @click.self="shareModal=false">
     <div class="cv-modal cv-modal-sm">
